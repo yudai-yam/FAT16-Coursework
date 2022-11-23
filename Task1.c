@@ -1,8 +1,5 @@
 #include <stdio.h>
-#include <unistd.h>
 #include <fcntl.h>
-#include <sys/types.h>
-
 
 void fileReader(char* file, off_t offset, int readingByte){
     char arr[100];
