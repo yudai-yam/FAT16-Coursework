@@ -1,0 +1,2 @@
+This text is for FAT16 Coursework Task1.
+This text file is to be opened and read in Task1.
