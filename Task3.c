@@ -28,30 +28,29 @@ typedef struct __attribute__((__packed__)) {
     uint8_t BS_FilSysType[ 8 ];  // e.g. 'FAT16   ' (Not 0 term.) 
 } BootSector;
 
-void fileReader(char* file, BootSector* bootSector){
+int fileReader(char* file, BootSector* bootSector){
     int fileDescriptor = open(file, O_RDONLY);
 
     read(fileDescriptor, bootSector, sizeof(BootSector));
-    
+
     close(fileDescriptor);
+
+    return fileDescriptor;
 }
 
-
 int main(){
-    
-    //printf("the size of boot sector is %d", sizeof(BootSector));
     BootSector bootSector;
-    fileReader("fat16.img",&bootSector);
-    
-    printf("BRB_BytsPerSec is: %d\n", bootSector.BPB_BytsPerSec); 
-    printf("BPB_SecPerClus is: %d\n", bootSector.BPB_SecPerClus);
-    printf("BPB_RsvdSecCnt is: %d\n", bootSector.BPB_RsvdSecCnt);
-    printf("BPB_NumFATs is: %d\n", bootSector.BPB_NumFATs);
-    printf("BPB_RootEntCnt is: %d\n", bootSector.BPB_RootEntCnt);
-    printf("BPB_TotSec16 is: %d\n", bootSector.BPB_TotSec16);
-    printf("BPB_FATSz16 is: %d\n", bootSector.BPB_FATSz16);
-    printf("BPB_TotSec32 is: %d\n", bootSector.BPB_TotSec32);
-    printf("BS_VolLab is: %.11s\n", bootSector.BS_VolLab);
+    int fileDescriptor = fileReader("fat16.img",&bootSector);
+
+    // get the size of reserved sectors
+    int rsvdSec = bootSector.BPB_RsvdSecCnt;
+    printf("The number of reserved sectors is %d\n", rsvdSec);
+    int bytsPerSec = bootSector.BPB_BytsPerSec;
+    printf("Bytes per sector is %d\n", bytsPerSec);
+    int sizeOfSector = rsvdSec * bytsPerSec;
+
+    // jump to the head of FAT
+    lseek(fileDescriptor, 0, SEEK_CUR);
 
     return 0;
 }
