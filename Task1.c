@@ -11,6 +11,7 @@ void fileReader(char* file, off_t offset, int readingByte){
     close(fileDescriptor);
 }
 
+
 int main(){
     fileReader("Task1.txt", 5, 10);
     return 0;
