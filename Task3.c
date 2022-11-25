@@ -3,8 +3,6 @@
 #include <fcntl.h>
 
 
-
-
 typedef struct __attribute__((__packed__)) { 
     uint8_t BS_jmpBoot[ 3 ]; // x86 jump instr. to boot code 
     uint8_t BS_OEMName[ 8 ]; // What created the filesystem 
@@ -33,8 +31,6 @@ int fileReader(char* file, BootSector* bootSector){
 
     read(fileDescriptor, bootSector, sizeof(BootSector));
 
-    close(fileDescriptor);
-
     return fileDescriptor;
 }
 
@@ -48,9 +44,41 @@ int main(){
     int bytsPerSec = bootSector.BPB_BytsPerSec;
     printf("Bytes per sector is %d\n", bytsPerSec);
     int sizeOfSector = rsvdSec * bytsPerSec;
+    printf("The size(byte) of reserved sector is %d\n", sizeOfSector);
+
+    // the number of clusters in FAT
+
+    int clusterInFAT = bootSector.BPB_FATSz16 / bootSector.BPB_SecPerClus;
+    printf("The number of clusters in FAT is %d\n", clusterInFAT);
+
+    // stoer it in an array
 
     // jump to the head of FAT
-    lseek(fileDescriptor, 0, SEEK_CUR);
+    lseek(fileDescriptor, sizeOfSector, SEEK_SET);
+
+    int FATsize = bootSector.BPB_FATSz16;
+
+    // make an array of 16 int
+    int cache[FATsize]; 
+    int *cachePointer = cache;
+
+    int entry = 0;
+    
+    // read the cluster one by one
+    int i = 0;
+    while (cache[i]<0xfff8)
+    {
+        read(fileDescriptor, (cachePointer+i), sizeof(int));
+        // go to the next cluster
+        printf("entry is %d\n",entry);
+        printf("scanned number is %d\n", cache[i]);
+        printf("counter is %d\n\n\n",i);
+        i++;
+    }
+
+    printf("The result is \n%x", cache);
+    
+    close(fileDescriptor);
 
     return 0;
 }
