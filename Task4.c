@@ -60,10 +60,20 @@ void namePrinter(DirectoryContent directoryEntry, bool isRegularFile, bool isIgn
     }
 
     if (isRegularFile){
+       
+        if (directoryEntry.DIR_Name[0] == ' '){
+            printf("This entry is not valid\n");
+            return;
+        }
+        if (directoryEntry.DIR_Name[0] == 0xE5){
+            printf("This entry is currently unused\n");
+            return;
+        }
+        
         printf("Name: ");
         // read first 8 bytes
-        bool spaceFound = false;
         for (int j=0; j<8; j++){
+            
             if (directoryEntry.DIR_Name[j] == ' ' && j != 0){
                 printf(".");
                 break;
@@ -138,12 +148,12 @@ int main(){
         int day;
 
         day = directoryArray[i].DIR_WrtDate & 31;
-        month = directoryArray[i].DIR_WrtDate >> 5 & 63;
-        year = (directoryArray[i].DIR_WrtDate >> 11 & 31) + 1980;
+        month = (directoryArray[i].DIR_WrtDate >> 5) & 15;
+        year = (directoryArray[i].DIR_WrtDate >> 9 & 127) + 1980;
 
         printf("The last modified date is %d/%d/%d\n", year, month, day);
 
-        printf("Size of the file is %d\n", directoryArray[i].DIR_FileSize);
+        printf("Size of the file is %hu\n", directoryArray[i].DIR_FileSize);
 
         printf("==============Attribute Management============\n");
 
