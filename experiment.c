@@ -26,41 +26,51 @@ typedef struct __attribute__((__packed__)) {
     uint8_t BS_FilSysType[ 8 ];  // e.g. 'FAT16   ' (Not 0 term.) 
 } BootSector;
 
-int fileReader(char* file, void* bootSector, int offset, int readingByte){
+int fileReader(char* file, BootSector* bootSector){
     int fileDescriptor = open(file, O_RDONLY);
 
-    read(fileDescriptor, bootSector, readingByte);
-
-    lseek(fileDescriptor, offset, SEEK_SET);
+    read(fileDescriptor, bootSector, sizeof(BootSector));
 
     return fileDescriptor;
 }
 
 int main(){
     BootSector bootSector;
-    
-    int fileDescriptor = fileReader("fat16.img",&bootSector, 0, sizeof(BootSector));
+    int fileDescriptor = fileReader("fat16.img",&bootSector);
 
     // get the size of reserved sectors
     int rsvdSec = bootSector.BPB_RsvdSecCnt;
     int bytsPerSec = bootSector.BPB_BytsPerSec;
     int sizeOfSector = rsvdSec * bytsPerSec;
+    printf("The size(byte) of reserved sector is %d\n", sizeOfSector);
+
+    // the number of clusters in FAT
+
+    int clusterInFAT = bootSector.BPB_FATSz16 / bootSector.BPB_SecPerClus;
+    printf("The number of clusters in FAT is %d\n", clusterInFAT);
+
+    // jump to the head of FAT
+    lseek(fileDescriptor, sizeOfSector, SEEK_SET);
+
     int FATsize = bootSector.BPB_FATSz16;
 
     // make an array of 16 int and put data in
     uint16_t cache[FATsize]; 
     uint16_t *cachePointer = cache;
-    fileReader("fat16.img",cachePointer, sizeOfSector, sizeof(uint16_t)*FATsize);
+    read(fileDescriptor, cachePointer, sizeof(uint16_t)*FATsize);
     
     // read the cluster one by one
-    int i = 0;
-    for (i=0; i<FATsize; i++) //(cache[i]<0xfff8)
+    int i = 2;
+    for (i=2; i<FATsize; i++) //(cache[i]<0xfff8)
     {
         // go to the next clusters
-        printf("%d: %d\n", i+2, cache[i]);
+        printf("scanned number is %d\n", cache[i]);
+        printf("counter is %d\n\n\n",i);
         //i++;
     }
 
+    printf("The result is \n%x", cache);
+    
     close(fileDescriptor);
 
     return 0;

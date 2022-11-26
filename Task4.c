@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <fcntl.h>
+#include <stdbool.h>
 
 
 typedef struct __attribute__((__packed__)) { 
@@ -26,20 +27,106 @@ typedef struct __attribute__((__packed__)) {
     uint8_t BS_FilSysType[ 8 ];  // e.g. 'FAT16   ' (Not 0 term.) 
 } BootSector;
 
-int fileReader(char* file, BootSector* bootSector){
-    int fileDescriptor = open(file, O_RDONLY);
 
-    read(fileDescriptor, bootSector, sizeof(BootSector));
+typedef struct __attribute__((__packed__)) { 
+    uint8_t DIR_Name[11]; // Non zero terminated string 
+    uint8_t DIR_Attr; // File attributes 
+    uint8_t DIR_NTRes; // Used by Windows NT, ignore 
+    uint8_t DIR_CrtTimeTenth; // Tenths of sec. 0...199 
+    uint16_t DIR_CrtTime; // Creation Time in 2s intervals 
+    uint16_t DIR_CrtDate; // Date file created 
+    uint16_t DIR_LstAccDate; // Date of last read or write 
+    uint16_t DIR_FstClusHI; // Top 16 bits file's 1st cluster 
+    uint16_t DIR_WrtTime; // Time of last write 
+    uint16_t DIR_WrtDate; // Date of last write 
+    uint16_t DIR_FstClusLO; // Lower 16 bits file's 1st cluster 
+    uint32_t DIR_FileSize; // File size in bytes
+} DirectoryContent;
+
+
+
+int fileReader(char* file, void* memoryStruct, int offset, int readingByte){
+    int fileDescriptor = open(file, O_RDONLY);
+    lseek(fileDescriptor,offset,SEEK_SET);
+    read(fileDescriptor, memoryStruct, readingByte);
 
     return fileDescriptor;
 }
 
+
 int main(){
     BootSector bootSector;
-    int fileDescriptor = fileReader("fat16.img",&bootSector);
+    DirectoryContent directoryContent;
+    int fileDescriptor = fileReader("fat16.img",&bootSector, 0, sizeof(BootSector));
+    
 
     // get the size of the filesystem up to root directly
     int beginningOfRootDirectry = (bootSector.BPB_RsvdSecCnt + bootSector.BPB_NumFATs*bootSector.BPB_FATSz16)*bootSector.BPB_BytsPerSec;
 
+    // array to store root directory
+    DirectoryContent directoryArray[bootSector.BPB_RootEntCnt/sizeof(DirectoryContent)];
+
+    fileReader("fat16.img",directoryArray,beginningOfRootDirectry,bootSector.BPB_RootEntCnt);
+
+    for (int i=0; i<bootSector.BPB_RootEntCnt/sizeof(DirectoryContent); i++){
+        //printf("The size of the file is %hu\n", directoryArray[i].DIR_FileSize);
+        //printf("The name is %.11s\n", directoryArray[i].DIR_Name);
+
+        // Name
+        printf("Name: ");
+        // read first 8 bytes
+        bool spaceFound = false;
+        for (int j=0; j<8; j++){
+            if (directoryArray[i].DIR_Name[j] == ' ' && j != 0){
+                printf(".");
+                break;
+            }
+            else if (!(directoryArray[i].DIR_Name[j]<32 || directoryArray[i].DIR_Name[j]>127)){
+                printf("%c",directoryArray[i].DIR_Name[j]);
+            }
+        }
+
+        // read last 3 bytes
+        for (int j = 8; j<11;j++){
+            if (directoryArray[i].DIR_Name[j] == ' '){
+                break;
+            }
+            else if (!(directoryArray[i].DIR_Name[j]<32 || directoryArray[i].DIR_Name[j]>127)){
+                printf("%c",directoryArray[i].DIR_Name[j]);
+            }
+        }
+        printf("\n\n");
+
+        printf("The higher 16 bits of first clucster is %d\n", directoryArray[i].DIR_FstClusHI);
+        printf("The lower 16 bits of first cluster is %d\n", directoryArray[i].DIR_FstClusLO);
+
+        int hour;
+        int minute;
+        int second;
+
+        second = (directoryArray[i].DIR_WrtTime & 31)*2;
+        minute = (directoryArray[i].DIR_WrtTime >> 5)& 63;
+        hour = (directoryArray[i].DIR_WrtTime >> 11) & 31;
+
+        printf("The last modified time is %d:%d:%d\n", hour,minute,second);
+
+
+        int year;
+        int month;
+        int day;
+
+        day = directoryArray[i].DIR_WrtDate & 31;
+        month = directoryArray[i].DIR_WrtDate >> 5 & 63;
+        year = (directoryArray[i].DIR_WrtDate >> 11 & 31) + 1980;
+
+        printf("The last modified date is %d/%d/%d\n", year, month, day);
+
+    }
+
+    printf("The beggining of root directory is: %d\n", beginningOfRootDirectry);
+
+    printf("Theh size of each file is %d\n", directoryContent.DIR_FileSize);
+
+    close(fileDescriptor);
     return 0;
     }
