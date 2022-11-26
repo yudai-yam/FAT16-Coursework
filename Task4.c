@@ -127,6 +127,7 @@ int main(){
 
         bool isRegularFile;
         bool isIgnored = false;
+
         
 
         printf("The higher 16 bits of first cluster is %d\n", directoryArray[i].DIR_FstClusHI);
