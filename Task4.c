@@ -44,17 +44,6 @@ typedef struct __attribute__((__packed__)) {
 } DirectoryContent;
 
 
-unsigned int_to_binary(unsigned k) {
-    if (k == 0) {
-        return 0;
-    }
-    if (k == 1) {
-        return 1;       
-    }              
-    return (k % 2) + 10 * int_to_binary(k / 2);
-}
-
-
 
 int fileReader(char* file, void* memoryStruct, int offset, int readingByte){
     int fileDescriptor = open(file, O_RDONLY);
@@ -62,6 +51,47 @@ int fileReader(char* file, void* memoryStruct, int offset, int readingByte){
     read(fileDescriptor, memoryStruct, readingByte);
 
     return fileDescriptor;
+}
+
+void namePrinter(DirectoryContent directoryEntry, bool isRegularFile, bool isIgnored){
+    if (isIgnored == true){
+        printf("This directory is to be ignored\n\n\n\n");
+        return;
+    }
+
+    if (isRegularFile){
+        printf("Name: ");
+        // read first 8 bytes
+        bool spaceFound = false;
+        for (int j=0; j<8; j++){
+            if (directoryEntry.DIR_Name[j] == ' ' && j != 0){
+                printf(".");
+                break;
+            }
+            else if (!(directoryEntry.DIR_Name[j]<32 || directoryEntry.DIR_Name[j]>127)){
+                printf("%c",directoryEntry.DIR_Name[j]);
+            }
+            if (j==7){
+                printf(".");
+            }
+        }
+
+        // read last 3 bytes
+        for (int j = 8; j<11;j++){
+            if (directoryEntry.DIR_Name[j] == ' '){
+                break;
+            }
+            else if (!(directoryEntry.DIR_Name[j]<32 || directoryEntry.DIR_Name[j]>127)){
+                printf("%c",directoryEntry.DIR_Name[j]);
+            }
+        }
+    }
+    else{
+        printf("Name: %.8s", directoryEntry.DIR_Name);
+    }
+
+    printf("\n\n\n\n");
+        
 }
 
 
@@ -79,36 +109,17 @@ int main(){
 
     fileReader("fat16.img",directoryArray,beginningOfRootDirectry,bootSector.BPB_RootEntCnt);
 
+
+
     for (int i=0; i<bootSector.BPB_RootEntCnt/sizeof(DirectoryContent); i++){
         //printf("The size of the file is %hu\n", directoryArray[i].DIR_FileSize);
         //printf("The name is %.11s\n", directoryArray[i].DIR_Name);
 
-        // Name
-        printf("Name: ");
-        // read first 8 bytes
-        bool spaceFound = false;
-        for (int j=0; j<8; j++){
-            if (directoryArray[i].DIR_Name[j] == ' ' && j != 0){
-                printf(".");
-                break;
-            }
-            else if (!(directoryArray[i].DIR_Name[j]<32 || directoryArray[i].DIR_Name[j]>127)){
-                printf("%c",directoryArray[i].DIR_Name[j]);
-            }
-        }
+        bool isRegularFile;
+        bool isIgnored = false;
+        
 
-        // read last 3 bytes
-        for (int j = 8; j<11;j++){
-            if (directoryArray[i].DIR_Name[j] == ' '){
-                break;
-            }
-            else if (!(directoryArray[i].DIR_Name[j]<32 || directoryArray[i].DIR_Name[j]>127)){
-                printf("%c",directoryArray[i].DIR_Name[j]);
-            }
-        }
-        printf("\n\n");
-
-        printf("The higher 16 bits of first clucster is %d\n", directoryArray[i].DIR_FstClusHI);
+        printf("The higher 16 bits of first cluster is %d\n", directoryArray[i].DIR_FstClusHI);
         printf("The lower 16 bits of first cluster is %d\n", directoryArray[i].DIR_FstClusLO);
 
         int hour;
@@ -132,7 +143,7 @@ int main(){
 
         printf("The last modified date is %d/%d/%d\n", year, month, day);
 
-        printf("Theh size of each file is %d\n", directoryArray[i].DIR_FileSize);
+        printf("Size of the file is %d\n", directoryArray[i].DIR_FileSize);
 
         printf("==============Attribute Management============\n");
 
@@ -152,7 +163,39 @@ int main(){
         printf("h- %d\n", hidden);
         printf("r- %d\n", readOnly);
 
-        printf("===============================================\n\n\n\n");
+        printf("=============================================\n");
+
+        //If both the directory bit and the volume ID/ Name bit are both zero, the entry corresponds to a 
+        //regular file, such as a text file, a PDF, etc
+        //if just the volume bit is set, the entry represents the name of the 
+        //‘disk’, which is normally shown alongside the drive letter in Windows;
+        // however, if just the directory bit is set, the entry represents the name of a directory, or folder in Windows
+        if (directory == 0 && volumeName == 0){
+            isRegularFile = true; // like .pdf
+            printf("Type: regular file\n");
+        }
+        else if (directory == 0 && volumeName == 1){
+            // represents name of the disk (volume label)
+            isRegularFile = false;
+            printf("Type: volume label\n");
+        }
+        else if (directory == 1 && volumeName == 0){
+            // the entry represents the name of a directory, or folder in Windows
+            isRegularFile = false;
+            printf("Type: directory\n");
+        }
+        else {
+            printf("Both directory and volume name are set to 1. There might be something wrong\n");
+        }
+
+        //If all lower four bits, 0...3, are set, and bits .4 and 5 are both zero, the directory entry should be 
+        // ignored for now.
+        if (attribute == 15){
+            isIgnored = true;
+        }
+
+        namePrinter(directoryArray[i], isRegularFile, isIgnored);
+
     }
     
     close(fileDescriptor);
