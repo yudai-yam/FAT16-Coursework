@@ -44,6 +44,17 @@ typedef struct __attribute__((__packed__)) {
 } DirectoryContent;
 
 
+unsigned int_to_binary(unsigned k) {
+    if (k == 0) {
+        return 0;
+    }
+    if (k == 1) {
+        return 1;       
+    }              
+    return (k % 2) + 10 * int_to_binary(k / 2);
+}
+
+
 
 int fileReader(char* file, void* memoryStruct, int offset, int readingByte){
     int fileDescriptor = open(file, O_RDONLY);
@@ -121,12 +132,30 @@ int main(){
 
         printf("The last modified date is %d/%d/%d\n", year, month, day);
 
+        printf("Theh size of each file is %d\n", directoryArray[i].DIR_FileSize);
+
+        printf("==============Attribute Management============\n");
+
+        int attribute = directoryArray[i].DIR_Attr;
+       
+        int readOnly = attribute & 1;
+        int hidden = (attribute >> 1) & 1;
+        int system = (attribute >> 2) & 1;
+        int volumeName = (attribute >> 3) & 1;
+        int directory = (attribute >> 4) & 1;
+        int archive = (attribute >> 5) & 1;
+
+        printf("a- %d\n", archive);
+        printf("d- %d\n", directory);
+        printf("v- %d\n", volumeName);
+        printf("s- %d\n", system);
+        printf("h- %d\n", hidden);
+        printf("r- %d\n", readOnly);
+
+        printf("===============================================\n\n\n\n");
     }
-
-    printf("The beggining of root directory is: %d\n", beginningOfRootDirectry);
-
-    printf("Theh size of each file is %d\n", directoryContent.DIR_FileSize);
-
+    
     close(fileDescriptor);
+
     return 0;
     }

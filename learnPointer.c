@@ -1,5 +1,11 @@
 #include <stdio.h>
 
+unsigned int_to_int(unsigned k) {
+    if (k == 0) return 0;
+    if (k == 1) return 1;                       /* optional */
+    return (k % 2) + 10 * int_to_int(k / 2);
+}
+
 int main () {
 
    int  var = 20;   /* actual variable declaration */
@@ -22,6 +28,8 @@ int main () {
 
    /* access the value using the pointer */
    printf("Value of *ip variable: %d\n", *ip );
+
+   printf("the binary form of 17 is: %d\n", int_to_int(19));
 
    return 0;
 }
