@@ -73,6 +73,8 @@ void namePrinter(int i, DirectoryContent directoryEntry, bool isRegularFile, boo
 
         // read the long directory content for this entry
         fileReader("fat16.img",&longDirectoryContent,i*sizeof(DirectoryContent)+beginningOfRootDirectry, sizeof(LongDirectoryContent));
+
+        printf("Name (long): ");
         
         // first name cluster management
         for (int j=0; j<10; j+=2){
@@ -83,7 +85,7 @@ void namePrinter(int i, DirectoryContent directoryEntry, bool isRegularFile, boo
             uint16_t shiftedUpperBit = upperBit >> 8;
             uint16_t combinedBit = shiftedUpperBit | lowerBit;
 
-            printf("First Name: %c\n", combinedBit);
+            printf("%c", combinedBit);
         }
 
         // middle name cluster management
@@ -95,7 +97,7 @@ void namePrinter(int i, DirectoryContent directoryEntry, bool isRegularFile, boo
             uint16_t shiftedUpperBit = upperBit >> 8;
             uint16_t combinedBit = shiftedUpperBit | lowerBit;
 
-            printf("Middle Name: %c\n", combinedBit);
+            printf("%c", combinedBit);
         }
 
         // last name cluster management
@@ -107,10 +109,10 @@ void namePrinter(int i, DirectoryContent directoryEntry, bool isRegularFile, boo
             uint16_t shiftedUpperBit = upperBit >> 8;
             uint16_t combinedBit = shiftedUpperBit | lowerBit;
 
-            printf("Last Name: %c\n", combinedBit);
+            printf("%c", combinedBit);
         }
 
-        printf("Name: LongName\n\n\n\n");
+        printf("\n\n\n\n");
 
         return;
     }
@@ -250,8 +252,7 @@ int main(){
             printf("Both directory and volume name are set to 1. There might be something wrong\n");
         }
 
-        //If all lower four bits, 0...3, are set, and bits .4 and 5 are both zero, the directory entry should be 
-        // ignored for now.
+        //If all lower four bits, 0...3, are set, and bits .4 and 5 are both zero, the directory has a long name
         if (attribute == 15){
             longName = true;
         }
