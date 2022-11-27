@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <fcntl.h>
-
+#include <stdbool.h>
 
 typedef struct __attribute__((__packed__)) { 
     uint8_t BS_jmpBoot[ 3 ]; // x86 jump instr. to boot code 
@@ -29,11 +29,39 @@ typedef struct __attribute__((__packed__)) {
 int fileReader(char* file, void* bootSector, int offset, int readingByte){
     int fileDescriptor = open(file, O_RDONLY);
 
+    lseek(fileDescriptor, offset, SEEK_SET);
     read(fileDescriptor, bootSector, readingByte);
 
-    lseek(fileDescriptor, offset, SEEK_SET);
-
     return fileDescriptor;
+}
+
+// 2 <= index < FATsize
+void FATTableScanner(uint16_t buffer[], int index, bool first, int FATsize){
+    if (first){
+        printf("%d", index);
+        if (!(index>=2 && index < FATsize)){
+            printf("\nThis index is invalid");
+            printf("FAT size: %d", FATsize);
+            return;
+        }
+    }
+
+    if (buffer[index] == 0x0000){
+        printf("\nFree cluster detected\n");
+    }
+    else if (buffer[index] == 0x0001 || buffer[index] == 0x0002){
+        printf("\nInvalid value detected\n");
+    }
+    else if (buffer[index] == 0xfff7){
+        printf("\nOne or more bad sectors detected\n");
+    }
+    else if (buffer[index] >= 0xfff8){
+        printf("\nEnd of file detected\n");
+    }
+    else {
+        printf(" -> %d", buffer[index]);
+        FATTableScanner(buffer,buffer[index], false, FATsize);
+    }
 }
 
 int main(){
@@ -49,17 +77,26 @@ int main(){
 
     // make an array of 16 int and put data in
     uint16_t cache[FATsize]; 
-    uint16_t *cachePointer = cache;
-    fileReader("fat16.img",cachePointer, sizeOfSector, sizeof(uint16_t)*FATsize);
+    //uint16_t *cachePointer = cache;
+    fileReader("fat16.img",cache, sizeOfSector, sizeof(uint16_t)*FATsize);
+
+    printf("========== FAT Table ==========\n");
     
     // read the cluster one by one
-    int i = 0;
-    for (i=0; i<FATsize; i++) //(cache[i]<0xfff8)
+    for (int i=2; i<FATsize; i++) //(cache[i]<0xfff8)
+    // 1st cluster is for copy of media descriptor 
+    // 2nd one is for end-of-file maker
     {
         // go to the next clusters
-        printf("%d: %d\n", i+2, cache[i]);
-        //i++;
-    }
+        printf("%d: %d\n", i, cache[i]);
+    } 
+
+    printf("===============================\n\n");
+
+    printf("~List of clusters making up a file~\n");
+
+    FATTableScanner(cache,2,true, FATsize);
+
 
     close(fileDescriptor);
 
