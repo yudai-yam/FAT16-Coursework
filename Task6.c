@@ -28,7 +28,8 @@ typedef struct __attribute__((__packed__)) {
 } BootSector;
 
 
-typedef struct __attribute__((__packed__)) { 
+
+typedef struct __attribute__((__packed__)) {  // 32 bytes
     uint8_t DIR_Name[11]; // Non zero terminated string 
     uint8_t DIR_Attr; // File attributes 
     uint8_t DIR_NTRes; // Used by Windows NT, ignore 
@@ -43,19 +44,74 @@ typedef struct __attribute__((__packed__)) {
     uint32_t DIR_FileSize; // File size in bytes
 } DirectoryContent;
 
+typedef struct __attribute__((__packed__)) { // 32 bytes
+    uint8_t LDIR_Ord; // Order/ position in sequence/ set 
+    uint8_t LDIR_Name1[ 10 ]; // First 5 UNICODE characters 
+    uint8_t LDIR_Attr; // = ATTR_LONG_NAME (xx001111) 
+    uint8_t LDIR_Type; // Should = 0 
+    uint8_t LDIR_Chksum; // Checksum of short name 
+    uint8_t LDIR_Name2[ 12 ]; // Middle 6 UNICODE characters 
+    uint16_t LDIR_FstClusLO; // MUST be zero 
+    uint8_t LDIR_Name3[ 4 ]; // Last 2 UNICODE characters
+} LongDirectoryContent;
+
 
 
 int fileReader(char* file, void* memoryStruct, int offset, int readingByte){
     int fileDescriptor = open(file, O_RDONLY);
-    lseek(fileDescriptor,offset,SEEK_CUR);
+    lseek(fileDescriptor,offset,SEEK_SET);
     read(fileDescriptor, memoryStruct, readingByte);
 
     return fileDescriptor;
 }
 
-void namePrinter(DirectoryContent directoryEntry, bool isRegularFile, bool isIgnored){
-    if (isIgnored == true){
-        printf("This directory is to be ignored\n\n\n\n");
+
+void namePrinter(int i, DirectoryContent directoryEntry, bool isRegularFile, bool longName, int beginningOfRootDirectry){
+    if (longName == true){
+        int offset = i*sizeof(DirectoryContent);
+        LongDirectoryContent longDirectoryContent;
+
+        // read the long directory content for this entry
+        fileReader("fat16.img",&longDirectoryContent,i*sizeof(DirectoryContent)+beginningOfRootDirectry, sizeof(LongDirectoryContent));
+        
+        // first name cluster management
+        for (int j=0; j<10; j+=2){
+            uint8_t lowerBit = longDirectoryContent.LDIR_Name1[j];
+            uint8_t upperBit = longDirectoryContent.LDIR_Name1[j+1];
+
+            // conbine them
+            uint16_t shiftedUpperBit = upperBit >> 8;
+            uint16_t combinedBit = shiftedUpperBit | lowerBit;
+
+            printf("First Name: %c\n", combinedBit);
+        }
+
+        // middle name cluster management
+        for (int j=0; j<12; j+=2){
+            uint8_t lowerBit = longDirectoryContent.LDIR_Name2[j];
+            uint8_t upperBit = longDirectoryContent.LDIR_Name2[j+1];
+
+            // conbine them
+            uint16_t shiftedUpperBit = upperBit >> 8;
+            uint16_t combinedBit = shiftedUpperBit | lowerBit;
+
+            printf("Middle Name: %c\n", combinedBit);
+        }
+
+        // last name cluster management
+        for (int j=0; j<4; j+=2){
+            uint8_t lowerBit = longDirectoryContent.LDIR_Name3[j];
+            uint8_t upperBit = longDirectoryContent.LDIR_Name3[j+1];
+
+            // conbine them
+            uint16_t shiftedUpperBit = upperBit >> 8;
+            uint16_t combinedBit = shiftedUpperBit | lowerBit;
+
+            printf("Last Name: %c\n", combinedBit);
+        }
+
+        printf("Name: LongName\n\n\n\n");
+
         return;
     }
 
@@ -104,25 +160,26 @@ void namePrinter(DirectoryContent directoryEntry, bool isRegularFile, bool isIgn
 }
 
 
+
+
 int main(){
     BootSector bootSector;
     DirectoryContent directoryContent;
-    int fileDescriptor = fileReader("fat16.img",&bootSector, 0, sizeof(BootSector));
-    
+    int fileDescriptor = fileReader("fat16.img", &bootSector, 0, sizeof(BootSector));
+
 
     // get the size of the filesystem up to root directly (byte)
     int beginningOfRootDirectry = (bootSector.BPB_RsvdSecCnt + bootSector.BPB_NumFATs*bootSector.BPB_FATSz16)*bootSector.BPB_BytsPerSec;
 
     // array to store root directory
-    DirectoryContent directoryArray[bootSector.BPB_RootEntCnt/sizeof(DirectoryContent)];
+    DirectoryContent directoryArray[bootSector.BPB_RootEntCnt/sizeof(DirectoryContent)]; 
 
     fileReader("fat16.img",directoryArray,beginningOfRootDirectry,bootSector.BPB_RootEntCnt);
-
 
     for (int i=0; i<bootSector.BPB_RootEntCnt/sizeof(DirectoryContent); i++){
 
         bool isRegularFile;
-        bool isIgnored = false;
+        bool longName = false;
 
         printf("The higher 16 bits of first cluster is %d\n", directoryArray[i].DIR_FstClusHI);
         printf("The lower 16 bits of first cluster is %d\n", directoryArray[i].DIR_FstClusLO);
@@ -196,13 +253,14 @@ int main(){
         //If all lower four bits, 0...3, are set, and bits .4 and 5 are both zero, the directory entry should be 
         // ignored for now.
         if (attribute == 15){
-            isIgnored = true;
+            longName = true;
         }
 
-        namePrinter(directoryArray[i], isRegularFile, isIgnored);
+        namePrinter(i, directoryArray[i], isRegularFile, longName, beginningOfRootDirectry);
     }
     
     close(fileDescriptor);
 
+
     return 0;
-    }
+}

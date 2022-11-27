@@ -95,8 +95,7 @@ int main(){
 
     printf("~List of clusters making up a file~\n");
 
-    FATTableScanner(cache,2,true, FATsize);
-
+    FATTableScanner(cache,6,true, FATsize);
 
     close(fileDescriptor);
 

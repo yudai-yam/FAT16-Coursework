@@ -56,7 +56,13 @@ int fileReader(char* file, void* memoryStruct, int offset, int readingByte){
 int main(){
     BootSector bootSector;
     DirectoryContent directoryContent;
-    int fileDescriptor = fileReader("fat16.img",&bootSector, 0, sizeof(BootSector));
+    int fileDescriptor = fileReader("fat16.img", &bootSector, 0, sizeof(BootSector));
+
+    int beginningOfDataArea = (bootSector.BPB_RsvdSecCnt + bootSector.BPB_NumFATs*bootSector.BPB_FATSz16)*bootSector.BPB_BytsPerSec + bootSector.BPB_RootEntCnt;
+
+    int buffer[sizeof(dataArea)/sizeof(oneEntryInDataArea)];
+
+    fileReader("fat16.img",buffer, beginningOfDataArea, sizeof(DataArea));
     
     return 0;
 }
