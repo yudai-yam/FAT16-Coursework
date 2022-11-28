@@ -28,6 +28,7 @@ typedef struct __attribute__((__packed__)) {
     uint8_t BS_FilSysType[ 8 ];  // e.g. 'FAT16   ' (Not 0 term.) 
 } BootSector;
 
+
 void fileReader(char* file, BootSector* bootSector){
     int fileDescriptor = open(file, O_RDONLY);
 

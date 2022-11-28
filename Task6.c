@@ -75,6 +75,8 @@ void namePrinter(int i, DirectoryContent directoryEntry, bool isRegularFile, boo
         fileReader("fat16.img",&longDirectoryContent,i*sizeof(DirectoryContent)+beginningOfRootDirectry, sizeof(LongDirectoryContent));
 
         printf("Name (long): ");
+
+        char longNameStorage[30];
         
         // first name cluster management
         for (int j=0; j<10; j+=2){
@@ -111,6 +113,15 @@ void namePrinter(int i, DirectoryContent directoryEntry, bool isRegularFile, boo
 
             printf("%c", combinedBit);
         }
+
+        printf("\nOred is %d\n", longDirectoryContent.LDIR_Ord);
+
+        // if Ored is 0x41 ~ 0x4F -> end of a long file name
+        if (0x41 < longDirectoryContent.LDIR_Ord < 0x4F){
+            printf("The end of long name\n");
+        }
+
+        
 
         printf("\n\n\n\n");
 

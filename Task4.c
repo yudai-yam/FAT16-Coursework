@@ -116,6 +116,7 @@ int main(){
     // array to store root directory
     DirectoryContent directoryArray[bootSector.BPB_RootEntCnt/sizeof(DirectoryContent)];
 
+    // move pointer to the beginning of root directory
     fileReader("fat16.img",directoryArray,beginningOfRootDirectry,bootSector.BPB_RootEntCnt);
 
 
@@ -149,6 +150,8 @@ int main(){
         printf("The last modified date is %d/%d/%d\n", year, month, day);
 
         printf("Size of the file is %hu\n", directoryArray[i].DIR_FileSize);
+
+        
 
         printf("==============Attribute Management===========\n");
 
