@@ -71,9 +71,9 @@ void namePrinter(int i, DirectoryContent directoryEntry, bool isRegularFile, boo
         int offset = i*sizeof(DirectoryContent);
         LongDirectoryContent longDirectoryContent;
 
+
         // read the long directory content for this entry
         fileReader("fat16.img",&longDirectoryContent,i*sizeof(DirectoryContent)+beginningOfRootDirectry, sizeof(LongDirectoryContent));
-
         printf("Name (long): ");
 
         char longNameStorage[30];
