@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include <stdbool.h>
 
 
@@ -65,164 +66,129 @@ int fileReader(char* file, void* memoryStruct, int offset, int readingByte){
     return fileDescriptor;
 }
 
-
-void namePrinter(int i, DirectoryContent directoryEntry, bool isRegularFile, bool longName, int beginningOfRootDirectry){
-    if (longName == true){
-        int offset = i*sizeof(DirectoryContent);
-        LongDirectoryContent longDirectoryContent;
-
-
-        // read the long directory content for this entry
-        fileReader("fat16.img",&longDirectoryContent,i*sizeof(DirectoryContent)+beginningOfRootDirectry, sizeof(LongDirectoryContent));
-        printf("Name (long): ");
-
-        char longNameStorage[30];
-        
-        // first name cluster management
-        for (int j=0; j<10; j+=2){
-            uint8_t lowerBit = longDirectoryContent.LDIR_Name1[j];
-            uint8_t upperBit = longDirectoryContent.LDIR_Name1[j+1];
-
-            // conbine them
-            uint16_t shiftedUpperBit = upperBit >> 8;
-            uint16_t combinedBit = shiftedUpperBit | lowerBit;
-
-            printf("%c", combinedBit);
-        }
-
-        // middle name cluster management
-        for (int j=0; j<12; j+=2){
-            uint8_t lowerBit = longDirectoryContent.LDIR_Name2[j];
-            uint8_t upperBit = longDirectoryContent.LDIR_Name2[j+1];
-
-            // conbine them
-            uint16_t shiftedUpperBit = upperBit >> 8;
-            uint16_t combinedBit = shiftedUpperBit | lowerBit;
-
-            printf("%c", combinedBit);
-        }
-
-        // last name cluster management
-        for (int j=0; j<4; j+=2){
-            uint8_t lowerBit = longDirectoryContent.LDIR_Name3[j];
-            uint8_t upperBit = longDirectoryContent.LDIR_Name3[j+1];
-
-            // conbine them
-            uint16_t shiftedUpperBit = upperBit >> 8;
-            uint16_t combinedBit = shiftedUpperBit | lowerBit;
-
-            printf("%c", combinedBit);
-        }
-
-        printf("\nOred is %d\n", longDirectoryContent.LDIR_Ord);
-
-        // if Ored is 0x41 ~ 0x4F -> end of a long file name
-        if (0x41 < longDirectoryContent.LDIR_Ord < 0x4F){
-            printf("The end of long name\n");
-        }
-
-        
-
-        printf("\n\n\n\n");
-
-        return;
-    }
-
-    if (isRegularFile){
-       
-        if (directoryEntry.DIR_Name[0] == ' '){
-            printf("This entry is not valid\n");
-            return;
-        }
-        if (directoryEntry.DIR_Name[0] == 0xE5){
-            printf("This entry is currently unused\n");
-            return;
-        }
-        
-        printf("Name: ");
-        // read first 8 bytes
-        for (int j=0; j<8; j++){
-            
-            if (directoryEntry.DIR_Name[j] == ' ' && j != 0){
-                printf(".");
-                break;
-            }
-            else if (!(directoryEntry.DIR_Name[j]<32 || directoryEntry.DIR_Name[j]>127)){
-                printf("%c",directoryEntry.DIR_Name[j]);
-            }
-            if (j==7){
-                printf(".");
-            }
-        }
-
-        // read last 3 bytes
-        for (int j = 8; j<11;j++){
-            if (directoryEntry.DIR_Name[j] == ' '){
-                break;
-            }
-            else if (!(directoryEntry.DIR_Name[j]<32 || directoryEntry.DIR_Name[j]>127)){
-                printf("%c",directoryEntry.DIR_Name[j]);
-            }
-        }
+// extract the first digit of LDIR_Ord
+int firstNumExtract(uint8_t hex){
+    int firstDigit;
+    // if 0x41 () ~ 0x4F
+    if (65 <= hex <= 79){
+        firstDigit = hex - 64;
     }
     else{
-        printf("Name: %.8s", directoryEntry.DIR_Name);
+        firstDigit = hex;
     }
-
-    printf("\n\n\n\n");
+    return firstDigit;
 }
 
+// returns a series of characters in one entry, therefore they must be combined to be complete
+uint16_t *longNameReader(LongDirectoryContent longDirectoryContent){
 
+    static uint16_t longTempStrage[13];
 
+    // first name cluster management
+    for (int j=0; j<10; j+=2){
+        uint8_t lowerBit = longDirectoryContent.LDIR_Name1[j];
+        uint8_t upperBit = longDirectoryContent.LDIR_Name1[j+1];
 
-int main(){
-    BootSector bootSector;
-    DirectoryContent directoryContent;
-    int fileDescriptor = fileReader("fat16.img", &bootSector, 0, sizeof(BootSector));
+        // conbine them
+        uint16_t shiftedUpperBit = upperBit >> 8;
+        uint16_t combinedBit = shiftedUpperBit | lowerBit;
 
+        longTempStrage[j/2] = combinedBit; // only one char can be stored so this gotta be fixed
+    }
 
-    // get the size of the filesystem up to root directly (byte)
-    int beginningOfRootDirectry = (bootSector.BPB_RsvdSecCnt + bootSector.BPB_NumFATs*bootSector.BPB_FATSz16)*bootSector.BPB_BytsPerSec;
+    // middle name cluster management
+    for (int j=0; j<12; j+=2){
+        uint8_t lowerBit = longDirectoryContent.LDIR_Name2[j];
+        uint8_t upperBit = longDirectoryContent.LDIR_Name2[j+1];
 
-    // array to store root directory
-    DirectoryContent directoryArray[bootSector.BPB_RootEntCnt/sizeof(DirectoryContent)]; 
+        // conbine them
+        uint16_t shiftedUpperBit = upperBit >> 8;
+        uint16_t combinedBit = shiftedUpperBit | lowerBit;
 
-    fileReader("fat16.img",directoryArray,beginningOfRootDirectry,bootSector.BPB_RootEntCnt);
+        longTempStrage[5 + (j/2)] = combinedBit;
+    }
 
-    for (int i=0; i<bootSector.BPB_RootEntCnt/sizeof(DirectoryContent); i++){
+    // last name cluster management
+    for (int j=0; j<4; j+=2){
+        uint8_t lowerBit = longDirectoryContent.LDIR_Name3[j];
+        uint8_t upperBit = longDirectoryContent.LDIR_Name3[j+1];
 
-        bool isRegularFile;
-        bool longName = false;
+        // conbine them
+        uint16_t shiftedUpperBit = upperBit >> 8;
+        uint16_t combinedBit = shiftedUpperBit | lowerBit;
 
-        printf("The higher 16 bits of first cluster is %d\n", directoryArray[i].DIR_FstClusHI);
-        printf("The lower 16 bits of first cluster is %d\n", directoryArray[i].DIR_FstClusLO);
+        longTempStrage[11 + (j/2)] = combinedBit;
+    }
+
+    return longTempStrage;
+}
+
+void shortNameReader(DirectoryContent directoryEntry){
+
+    uint8_t shortNameStorage[12];
+       
+    if (directoryEntry.DIR_Name[0] == ' '){
+        printf("This entry is not valid\n");
+        return;
+    }
+    if (directoryEntry.DIR_Name[0] == 0xE5){
+        printf("This entry is currently unused\n");
+        return;
+    }
+    
+    // read first 8 bytes
+    for (int j=0; j<8; j++){
+        // when ' ' and extention sector is not null -> .
+        if ((directoryEntry.DIR_Name[j] == ' ' && j != 0) && (directoryEntry.DIR_Name[8] != ' ')){
+            printf(".");
+            break;
+        }
+        else if (!(directoryEntry.DIR_Name[j]<32 || directoryEntry.DIR_Name[j]>127)){
+            printf("%c",directoryEntry.DIR_Name[j]);
+        }
+    }
+
+    // read last 3 bytes
+    for (int j = 8; j<11;j++){
+        if (directoryEntry.DIR_Name[j] == ' ' && j == 8){
+            break;
+        }
+        else if (!(directoryEntry.DIR_Name[j]<32 || directoryEntry.DIR_Name[j]>127)){
+            printf("%c",directoryEntry.DIR_Name[j]);
+        }
+    }
+    return;
+}
+
+void dataReader(DirectoryContent directoryContent){
+    printf("The higher 16 bits of first cluster is %d\n", directoryContent.DIR_FstClusHI);
+        printf("The lower 16 bits of first cluster is %d\n", directoryContent.DIR_FstClusLO);
 
         int hour;
         int minute;
         int second;
 
-        second = (directoryArray[i].DIR_WrtTime & 31)*2;
-        minute = (directoryArray[i].DIR_WrtTime >> 5)& 63;
-        hour = (directoryArray[i].DIR_WrtTime >> 11) & 31;
+        second = (directoryContent.DIR_WrtTime & 31)*2;
+        minute = (directoryContent.DIR_WrtTime >> 5)& 63;
+        hour = (directoryContent.DIR_WrtTime >> 11) & 31;
 
         printf("The last modified time is %d:%d:%d\n", hour,minute,second);
-
 
         int year;
         int month;
         int day;
 
-        day = directoryArray[i].DIR_WrtDate & 31;
-        month = (directoryArray[i].DIR_WrtDate >> 5) & 15;
-        year = (directoryArray[i].DIR_WrtDate >> 9 & 127) + 1980;
+        day = directoryContent.DIR_WrtDate & 31;
+        month = (directoryContent.DIR_WrtDate >> 5) & 15;
+        year = (directoryContent.DIR_WrtDate >> 9 & 127) + 1980;
 
         printf("The last modified date is %d/%d/%d\n", year, month, day);
 
-        printf("Size of the file is %hu\n", directoryArray[i].DIR_FileSize);
+        printf("Size of the file is %hu\n", directoryContent.DIR_FileSize);
 
         printf("==============Attribute Management===========\n");
 
-        int attribute = directoryArray[i].DIR_Attr;
+        int attribute = directoryContent.DIR_Attr;
        
         int readOnly = attribute & 1;
         int hidden = (attribute >> 1) & 1;
@@ -246,33 +212,100 @@ int main(){
         //‘disk’, which is normally shown alongside the drive letter in Windows;
         // however, if just the directory bit is set, the entry represents the name of a directory, or folder in Windows
         if (directory == 0 && volumeName == 0){
-            isRegularFile = true; // like .pdf
+            // like .pdf
             printf("Type: regular file\n");
         }
         else if (directory == 0 && volumeName == 1){
             // represents name of the disk (volume label)
-            isRegularFile = false;
             printf("Type: volume label\n");
         }
         else if (directory == 1 && volumeName == 0){
             // the entry represents the name of a directory, or folder in Windows
-            isRegularFile = false;
             printf("Type: directory\n");
         }
         else {
             printf("Both directory and volume name are set to 1. There might be something wrong\n");
         }
+        printf("\n");
 
-        //If all lower four bits, 0...3, are set, and bits .4 and 5 are both zero, the directory has a long name
+}
+
+
+int main(){
+    BootSector bootSector;
+    DirectoryContent directoryContent;
+    int fileDescriptor = fileReader("fat16.img", &bootSector, 0, sizeof(BootSector));
+
+
+    // get the size of the filesystem up to root directly (byte)
+    int beginningOfRootDirectry = (bootSector.BPB_RsvdSecCnt + bootSector.BPB_NumFATs*bootSector.BPB_FATSz16)*bootSector.BPB_BytsPerSec;
+
+    // array to store root directory
+    DirectoryContent directoryArray[bootSector.BPB_RootEntCnt]; 
+
+    fileReader("fat16.img",directoryArray,beginningOfRootDirectry,bootSector.BPB_RootEntCnt*sizeof(DirectoryContent));
+
+
+    //for (int i=0; i<bootSector.BPB_RootEntCnt/sizeof(DirectoryContent); i++){
+    int i=0;
+    while(directoryArray[i].DIR_Name[0] != 0){
+
+        bool isRegularFile;
+        bool longName = false;
+        int longNameEntry = 0;
+
+        int attribute = directoryArray[i].DIR_Attr;
+
+
+        // long name management
         if (attribute == 15){
-            longName = true;
+            LongDirectoryContent longDirectoryContent;
+
+            // move to the place where long directory content starts and read
+            fileReader("fat16.img", &longDirectoryContent, beginningOfRootDirectry + i * sizeof(DirectoryContent), sizeof(LongDirectoryContent));
+
+            // analyze how much memory the long name takes
+            int longNameEntry = firstNumExtract(longDirectoryContent.LDIR_Ord);
+            uint16_t longNameStorage[longNameEntry][13];
+
+            
+            // store each long name sequencially in longNameStorage
+            int longNameIndex = 0;
+            for (longNameIndex; longNameIndex<longNameEntry; longNameIndex++){
+                fileReader("fat16.img", &longDirectoryContent, beginningOfRootDirectry + (i + longNameIndex) * sizeof(DirectoryContent), sizeof(LongDirectoryContent));
+                uint16_t *ptr;
+                ptr = longNameReader(longDirectoryContent);
+                for (int j=0;j<13;j++){
+                    longNameStorage[longNameIndex][j] = *(ptr + j);
+                }
+            }
+
+            // reverse and print the long name
+            printf("Name (long): ");
+            for (int j=longNameEntry; 0<j; j--){ // use j-1 to access array
+                for(int k=0; k<13; k++){
+                    printf("%c", longNameStorage[j-1][k]);
+                }                
+            }
+            printf("\n");
+
+            dataReader(directoryArray[i+longNameIndex]);
+
+            // increment the index of outer loop because the index has been incremented for long name directories
+            i = i + longNameIndex;
         }
-
-        namePrinter(i, directoryArray[i], isRegularFile, longName, beginningOfRootDirectry);
+        
+        // short name management
+        else{
+            printf("Name (short): ");
+            shortNameReader(directoryArray[i]);
+            printf("\n");
+            dataReader(directoryArray[i]);
+        }
+        
+        i++;
     }
-    
+
     close(fileDescriptor);
-
-
     return 0;
 }
