@@ -53,6 +53,81 @@ int fileReader(char* file, void* memoryStruct, int offset, int readingByte){
     return fileDescriptor;
 }
 
+
+void dataReader(DirectoryContent directoryContent){
+    printf("The higher 16 bits of first cluster is %d\n", directoryContent.DIR_FstClusHI);
+        printf("The lower 16 bits of first cluster is %d\n", directoryContent.DIR_FstClusLO);
+
+        int hour;
+        int minute;
+        int second;
+
+        second = (directoryContent.DIR_WrtTime & 31)*2;
+        minute = (directoryContent.DIR_WrtTime >> 5)& 63;
+        hour = (directoryContent.DIR_WrtTime >> 11) & 31;
+
+        printf("The last modified time is %d:%d:%d\n", hour,minute,second);
+
+        int year;
+        int month;
+        int day;
+
+        day = directoryContent.DIR_WrtDate & 31;
+        month = (directoryContent.DIR_WrtDate >> 5) & 15;
+        year = (directoryContent.DIR_WrtDate >> 9 & 127) + 1980;
+
+        printf("The last modified date is %d/%d/%d\n", year, month, day);
+
+        printf("Size of the file is %hu\n", directoryContent.DIR_FileSize);
+
+        printf("==============Attribute Management===========\n");
+
+        int attribute = directoryContent.DIR_Attr;
+       
+        int readOnly = attribute & 1;
+        int hidden = (attribute >> 1) & 1;
+        int system = (attribute >> 2) & 1;
+        int volumeName = (attribute >> 3) & 1;
+        int directory = (attribute >> 4) & 1;
+        int archive = (attribute >> 5) & 1;
+
+        printf("a- %d\n", archive);
+        printf("d- %d\n", directory);
+        printf("v- %d\n", volumeName);
+        printf("s- %d\n", system);
+        printf("h- %d\n", hidden);
+        printf("r- %d\n", readOnly);
+
+        printf("=============================================\n");
+
+        //If both the directory bit and the volume ID/ Name bit are both zero, the entry corresponds to a 
+        //regular file, such as a text file, a PDF, etc
+        //if just the volume bit is set, the entry represents the name of the 
+        //‘disk’, which is normally shown alongside the drive letter in Windows;
+        // however, if just the directory bit is set, the entry represents the name of a directory, or folder in Windows
+        if (directory == 0 && volumeName == 0){
+            // like .pdf
+            printf("Type: regular file\n");
+        }
+        else if (directory == 0 && volumeName == 1){
+            // represents name of the disk (volume label)
+            printf("Type: volume label\n");
+        }
+        else if (directory == 1 && volumeName == 0){
+            // the entry represents the name of a directory, or folder in Windows
+            printf("Type: directory\n");
+        }
+        else {
+            printf("Both directory and volume name are set to 1. There might be something wrong\n");
+        }
+        
+
+}
+
+
+
+
+
 void namePrinter(DirectoryContent directoryEntry, bool isRegularFile, bool isIgnored){
     if (isIgnored == true){
         printf("This directory is to be ignored\n\n\n\n");
@@ -100,7 +175,7 @@ void namePrinter(DirectoryContent directoryEntry, bool isRegularFile, bool isIgn
         printf("Name: %.8s", directoryEntry.DIR_Name);
     }
 
-    printf("\n\n\n\n");
+    printf("\n");
 }
 
 
@@ -114,95 +189,34 @@ int main(){
     int beginningOfRootDirectry = (bootSector.BPB_RsvdSecCnt + bootSector.BPB_NumFATs*bootSector.BPB_FATSz16)*bootSector.BPB_BytsPerSec;
 
     // array to store root directory
-    DirectoryContent directoryArray[bootSector.BPB_RootEntCnt/sizeof(DirectoryContent)];
+    DirectoryContent directoryArray[bootSector.BPB_RootEntCnt];
 
     // move pointer to the beginning of root directory
     fileReader("fat16.img",directoryArray,beginningOfRootDirectry,bootSector.BPB_RootEntCnt);
 
 
-    for (int i=0; i<bootSector.BPB_RootEntCnt/sizeof(DirectoryContent); i++){
+    int i=0;
+    while(directoryArray[i].DIR_Name[0] != 0){
 
         bool isRegularFile;
         bool isIgnored = false;
 
-        printf("The higher 16 bits of first cluster is %d\n", directoryArray[i].DIR_FstClusHI);
-        printf("The lower 16 bits of first cluster is %d\n", directoryArray[i].DIR_FstClusLO);
-
-        int hour;
-        int minute;
-        int second;
-
-        second = (directoryArray[i].DIR_WrtTime & 31)*2;
-        minute = (directoryArray[i].DIR_WrtTime >> 5)& 63;
-        hour = (directoryArray[i].DIR_WrtTime >> 11) & 31;
-
-        printf("The last modified time is %d:%d:%d\n", hour,minute,second);
-
-
-        int year;
-        int month;
-        int day;
-
-        day = directoryArray[i].DIR_WrtDate & 31;
-        month = (directoryArray[i].DIR_WrtDate >> 5) & 15;
-        year = (directoryArray[i].DIR_WrtDate >> 9 & 127) + 1980;
-
-        printf("The last modified date is %d/%d/%d\n", year, month, day);
-
-        printf("Size of the file is %hu\n", directoryArray[i].DIR_FileSize);
-
-        
-
-        printf("==============Attribute Management===========\n");
-
-        int attribute = directoryArray[i].DIR_Attr;
-       
-        int readOnly = attribute & 1;
-        int hidden = (attribute >> 1) & 1;
-        int system = (attribute >> 2) & 1;
-        int volumeName = (attribute >> 3) & 1;
-        int directory = (attribute >> 4) & 1;
-        int archive = (attribute >> 5) & 1;
-
-        printf("a- %d\n", archive);
-        printf("d- %d\n", directory);
-        printf("v- %d\n", volumeName);
-        printf("s- %d\n", system);
-        printf("h- %d\n", hidden);
-        printf("r- %d\n", readOnly);
-
-        printf("=============================================\n");
-
-        //If both the directory bit and the volume ID/ Name bit are both zero, the entry corresponds to a 
-        //regular file, such as a text file, a PDF, etc
-        //if just the volume bit is set, the entry represents the name of the 
-        //‘disk’, which is normally shown alongside the drive letter in Windows;
-        // however, if just the directory bit is set, the entry represents the name of a directory, or folder in Windows
-        if (directory == 0 && volumeName == 0){
-            isRegularFile = true; // like .pdf
-            printf("Type: regular file\n");
-        }
-        else if (directory == 0 && volumeName == 1){
-            // represents name of the disk (volume label)
-            isRegularFile = false;
-            printf("Type: volume label\n");
-        }
-        else if (directory == 1 && volumeName == 0){
-            // the entry represents the name of a directory, or folder in Windows
-            isRegularFile = false;
-            printf("Type: directory\n");
-        }
-        else {
-            printf("Both directory and volume name are set to 1. There might be something wrong\n");
-        }
 
         //If all lower four bits, 0...3, are set, and bits .4 and 5 are both zero, the directory entry should be 
         // ignored for now.
-        if (attribute == 15){
+        if (directoryArray[i].DIR_Attr == 15){
             isIgnored = true;
+            printf("This directory is to be ignored\n");
         }
 
-        namePrinter(directoryArray[i], isRegularFile, isIgnored);
+        else{
+            namePrinter(directoryArray[i], isRegularFile, isIgnored);
+            dataReader(directoryArray[i]);
+        }
+
+        i++;
+        printf("\n\n");
+
     }
     
     close(fileDescriptor);
