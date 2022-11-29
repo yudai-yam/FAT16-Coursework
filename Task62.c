@@ -134,8 +134,6 @@ uint16_t *longNameReader(LongDirectoryContent longDirectoryContent){
 void shortNameReader(DirectoryContent directoryEntry){
 
     uint8_t shortNameStorage[12];
-
-
        
     if (directoryEntry.DIR_Name[0] == ' '){
         printf("This entry is not valid\n");
@@ -165,7 +163,6 @@ void shortNameReader(DirectoryContent directoryEntry){
         }
         else if (!(directoryEntry.DIR_Name[j]<32 || directoryEntry.DIR_Name[j]>127)){
             printf("%c",directoryEntry.DIR_Name[j]);
-       
         }
     }
     return;
@@ -184,7 +181,6 @@ void dataReader(DirectoryContent directoryContent){
         hour = (directoryContent.DIR_WrtTime >> 11) & 31;
 
         printf("The last modified time is %d:%d:%d\n", hour,minute,second);
-
 
         int year;
         int month;
@@ -253,51 +249,20 @@ int main(){
     int beginningOfRootDirectry = (bootSector.BPB_RsvdSecCnt + bootSector.BPB_NumFATs*bootSector.BPB_FATSz16)*bootSector.BPB_BytsPerSec;
 
     // array to store root directory
-    DirectoryContent directoryArray[bootSector.BPB_RootEntCnt/sizeof(DirectoryContent)]; 
+    DirectoryContent directoryArray[bootSector.BPB_RootEntCnt]; 
 
-    fileReader("fat16.img",directoryArray,beginningOfRootDirectry,bootSector.BPB_RootEntCnt);
+    fileReader("fat16.img",directoryArray,beginningOfRootDirectry,bootSector.BPB_RootEntCnt*sizeof(DirectoryContent));
 
 
-    for (int i=0; i<bootSector.BPB_RootEntCnt/sizeof(DirectoryContent); i++){
+    //for (int i=0; i<bootSector.BPB_RootEntCnt/sizeof(DirectoryContent); i++){
+    int i=0;
+    while(directoryArray[i].DIR_Name[0] != 0){
 
         bool isRegularFile;
         bool longName = false;
         int longNameEntry = 0;
 
-        // attribute management
-
         int attribute = directoryArray[i].DIR_Attr;
-       
-        /* int readOnly = attribute & 1;
-        int hidden = (attribute >> 1) & 1;
-        int system = (attribute >> 2) & 1;
-        int volumeName = (attribute >> 3) & 1;
-        int directory = (attribute >> 4) & 1;
-        int archive = (attribute >> 5) & 1;
-
-        //If both the directory bit and the volume ID/ Name bit are both zero, the entry corresponds to a 
-        //regular file, such as a text file, a PDF, etc
-        //if just the volume bit is set, the entry represents the name of the 
-        //‘disk’, which is normally shown alongside the drive letter in Windows;
-        // however, if just the directory bit is set, the entry represents the name of a directory, or folder in Windows
-        if (directory == 0 && volumeName == 0){
-            isRegularFile = true; // like .pdf
-            printf("Type: regular file\n");
-        }
-        else if (directory == 0 && volumeName == 1){
-            // represents name of the disk (volume label)
-            isRegularFile = false;
-            printf("Type: volume label\n");
-        }
-        else if (directory == 1 && volumeName == 0){
-            // the entry represents the name of a directory, or folder in Windows
-            isRegularFile = false;
-            printf("Type: directory\n");
-        }
-        else {
-            printf("Both directory and volume name are set to 1. There might be something wrong\n");
-        } */
-
 
 
         // long name management
@@ -335,7 +300,7 @@ int main(){
             dataReader(directoryArray[i+longNameIndex]);
 
             // increment the index of outer loop because the index has been incremented for long name directories
-            i = i + longNameIndex + 1;
+            i = i + longNameIndex;
         }
 
         
@@ -346,7 +311,8 @@ int main(){
             printf("\n");
             dataReader(directoryArray[i]);
         }
-            
+        
+        i++;
     }
 
     close(fileDescriptor);
