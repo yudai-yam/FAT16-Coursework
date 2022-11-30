@@ -246,7 +246,7 @@ int main(){
     fileReader("fat16.img",directoryArray,beginningOfRootDirectry,bootSector.BPB_RootEntCnt*sizeof(DirectoryContent));
 
 
-    //for (int i=0; i<bootSector.BPB_RootEntCnt/sizeof(DirectoryContent); i++){
+    // keep reading directories until the first entry of name array is 0
     int i=0;
     while(directoryArray[i].DIR_Name[0] != 0){
 

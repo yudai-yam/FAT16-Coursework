@@ -53,16 +53,78 @@ int fileReader(char* file, void* memoryStruct, int offset, int readingByte){
     return fileDescriptor;
 }
 
+void dataExtracter(BootSector bootSector, DirectoryContent directryContent){
+    // get the first cluster number
+    uint16_t firstClusterHi = directryContent.DIR_FstClusHI << 16;
+    uint16_t firstClusterLo = directryContent.DIR_FstClusLO;
+    uint16_t firstCluster = firstClusterHi | firstClusterLo;
+
+    // goes to first cluster in data section
+    const int clusterSize = bootSector.BPB_SecPerClus*bootSector.BPB_BytsPerSec;
+    char dataBuffer[clusterSize]; // store one cluster
+
+    int beginningOfDataArea = (bootSector.BPB_RsvdSecCnt + bootSector.BPB_NumFATs*bootSector.BPB_FATSz16)*bootSector.BPB_BytsPerSec;
+    beginningOfDataArea += bootSector.BPB_RootEntCnt*sizeof(DirectoryContent);
+
+    fileReader("fat16.img",dataBuffer,beginningOfDataArea+clusterSize*(firstCluster-2), clusterSize);
+
+    printf("The first cluster's content is \n%s\n", buffer);
+
+    // go to the FAT table based on the index
+    int FATsize = bootSector.BPB_FATSz16;
+    int rsvdSec = bootSector.BPB_RsvdSecCnt;
+    int bytsPerSec = bootSector.BPB_BytsPerSec;
+    int sizeOfReserbedSector = rsvdSec * bytsPerSec;
+
+    uint16_t fatBuffer[FATsize/sizeof(uint16_t)];
+    fileReader("fat16.img",fatBuffer, sizeOfReservedSector+sizeof(uint16_t)*firstCluster, sizeof(uint16_t));
+
+}
+
 int main(){
     BootSector bootSector;
     DirectoryContent directoryContent;
     int fileDescriptor = fileReader("fat16.img", &bootSector, 0, sizeof(BootSector));
 
-    int beginningOfDataArea = (bootSector.BPB_RsvdSecCnt + bootSector.BPB_NumFATs*bootSector.BPB_FATSz16)*bootSector.BPB_BytsPerSec + bootSector.BPB_RootEntCnt;
+    //const int clusterSize = bootSector.BPB_SecPerClus*bootSector.BPB_BytsPerSec;
 
-    int buffer[sizeof(dataArea)/sizeof(oneEntryInDataArea)];
+    int beginningOfRootDirectry = (bootSector.BPB_RsvdSecCnt + bootSector.BPB_NumFATs*bootSector.BPB_FATSz16)*bootSector.BPB_BytsPerSec;
 
-    fileReader("fat16.img",buffer, beginningOfDataArea, sizeof(DataArea));
+   
+
+    printf("Totsec16 is : %d\n", bootSector.BPB_TotSec16);
+
+    DirectoryContent directoryArray[bootSector.BPB_RootEntCnt]; 
+
+    fileReader("fat16.img",directoryArray,beginningOfRootDirectry,bootSector.BPB_RootEntCnt*sizeof(DirectoryContent));
+
+    
+
+    // keep reading directories until the first entry of name array is 0
+    int i=0;
+    
+    while(directoryArray[i].DIR_Name[0] != 0){
+
+
+        int attribute = directoryArray[i].DIR_Attr;
+        
+        int volumeName = (attribute >> 3) & 1;
+        int directory = (attribute >> 4) & 1;
+
+        //If both the directory bit and the volume ID/ Name bit are both zero, the entry corresponds to a 
+        //regular file, such as a text file, a PDF, etc
+        if (directory == 0 && volumeName == 0){
+            // like .pdf
+            printf("Type: regular file\n");
+            dataExtracter(bootSector, directoryArray[i]);
+        }
+        else{
+            printf("This is to be ignored since this is not a regular file\n");
+        }
+
+        i++;
+        //fileReader("fat16.img",buffer, beginningOfDataArea, clusterSize);
+    } 
     
     return 0;
 }

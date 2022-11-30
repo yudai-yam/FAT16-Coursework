@@ -120,7 +120,6 @@ void dataReader(DirectoryContent directoryContent){
         else {
             printf("Both directory and volume name are set to 1. There might be something wrong\n");
         }
-        
 
 }
 

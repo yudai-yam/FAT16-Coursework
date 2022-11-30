@@ -77,7 +77,6 @@ int main(){
 
     // make an array of 16 int and put data in
     uint16_t cache[FATsize]; 
-    //uint16_t *cachePointer = cache;
     fileReader("fat16.img",cache, sizeOfSector, sizeof(uint16_t)*FATsize);
 
     printf("========== FAT Table ==========\n");
