@@ -54,17 +54,7 @@ int fileReader(char* file, void* memoryStruct, int offset, int readingByte){
 }
 
 void dataExtracter(BootSector bootSector, uint16_t clusterIndex, uint32_t fileSize){
- /*    const int cluster_sz = ;
-// normal cases cluster size < file size
-// the last would be cluster size > file size
-if (file_sz < cluster_sz) {
-    char dataBuffer[file_sz];
-    fileReader("fat16.img", dataBuffer, beginningOfDataArea + file_sz*(clusterIndex - 2), directoryContent.DIR_FileSize);
-    // loop over dataBuffer and print
-    return;
-
-}
- */
+ 
     // goes to first cluster in data section
     const int clusterSize = bootSector.BPB_SecPerClus*bootSector.BPB_BytsPerSec;
     char dataBuffer[clusterSize]; // store one cluster
@@ -106,7 +96,6 @@ int main(){
 
     // read data in root directory
     int beginningOfRootDirectry = (bootSector.BPB_RsvdSecCnt + bootSector.BPB_NumFATs*bootSector.BPB_FATSz16)*bootSector.BPB_BytsPerSec;
-    //DirectoryContent directoryContent;
     DirectoryContent directoryArray[bootSector.BPB_RootEntCnt]; 
     fileReader("fat16.img",directoryArray,beginningOfRootDirectry,sizeof(DirectoryContent)*bootSector.BPB_RootEntCnt);
 
@@ -124,7 +113,6 @@ int main(){
         indexLimit++;
         }
     }
-    
 
     bool valid = false;
     while(!valid){

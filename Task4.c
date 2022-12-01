@@ -53,6 +53,46 @@ int fileReader(char* file, void* memoryStruct, int offset, int readingByte){
     return fileDescriptor;
 }
 
+void attributeFormatter(int A, int D, int V, int S, int H, int R){
+    if (A == 0){
+        printf("-");
+    }
+    else{
+        printf("A");
+    }
+    if (D == 0){
+        printf("-");
+    }
+    else{
+        printf("D");
+    }
+    if (V == 0){
+        printf("-");
+    }
+    else{
+        printf("V");
+    }
+    if (S == 0){
+        printf("-");
+    }
+    else{
+        printf("S");
+    }
+    if (H == 0){
+        printf("-");
+    }
+    else{
+        printf("H");
+    }
+    if (R == 0){
+        printf("-");
+    }
+    else{
+        printf("R");
+    }
+    printf("\n");
+}
+
 
 void dataReader(DirectoryContent directoryContent){
     printf("The higher 16 bits of first cluster is %d\n", directoryContent.DIR_FstClusHI);
@@ -80,8 +120,6 @@ void dataReader(DirectoryContent directoryContent){
 
     printf("Size of the file is %hu\n", directoryContent.DIR_FileSize);
 
-    printf("==============Attribute Management===========\n");
-
     int attribute = directoryContent.DIR_Attr;
     
     int readOnly = attribute & 1;
@@ -91,14 +129,8 @@ void dataReader(DirectoryContent directoryContent){
     int directory = (attribute >> 4) & 1;
     int archive = (attribute >> 5) & 1;
 
-    printf("a- %d\n", archive);
-    printf("d- %d\n", directory);
-    printf("v- %d\n", volumeName);
-    printf("s- %d\n", system);
-    printf("h- %d\n", hidden);
-    printf("r- %d\n", readOnly);
+    attributeFormatter(archive,directory,volumeName,system,hidden,readOnly);
 
-    printf("=============================================\n");
 
     //If both the directory bit and the volume ID/ Name bit are both zero, the entry corresponds to a 
     //regular file, such as a text file, a PDF, etc
