@@ -31,7 +31,7 @@ int fileReader(char* file, void* bootSector, int offset, int readingByte){
 
     lseek(fileDescriptor, offset, SEEK_SET);
     read(fileDescriptor, bootSector, readingByte);
-
+    close(fileDescriptor);
     return fileDescriptor;
 }
 
@@ -40,8 +40,8 @@ void FATTableScanner(uint16_t buffer[], int index, bool first, int FATsize){
     if (first){
         printf("%d", index);
         if (!(index>=2 && index < FATsize)){
-            printf("\nThis index is invalid");
-            printf("FAT size: %d", FATsize);
+            printf("\nThis index is invalid\n");
+            printf("FAT size: %d\n", FATsize);
             return;
         }
     }
@@ -94,9 +94,7 @@ int main(){
 
     printf("~List of clusters making up a file~\n");
 
-    FATTableScanner(cache,6,true, FATsize);
-
-    close(fileDescriptor);
+    FATTableScanner(cache,20,true, FATsize);
 
     return 0;
 }

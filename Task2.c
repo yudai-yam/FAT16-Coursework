@@ -3,8 +3,6 @@
 #include <fcntl.h>
 
 
-
-
 typedef struct __attribute__((__packed__)) { 
     uint8_t BS_jmpBoot[ 3 ]; // x86 jump instr. to boot code 
     uint8_t BS_OEMName[ 8 ]; // What created the filesystem 
@@ -39,8 +37,6 @@ void fileReader(char* file, BootSector* bootSector){
 
 
 int main(){
-    
-    //printf("the size of boot sector is %d", sizeof(BootSector));
     BootSector bootSector;
     fileReader("fat16.img",&bootSector);
     

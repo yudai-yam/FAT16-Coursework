@@ -49,11 +49,11 @@ int fileReader(char* file, void* memoryStruct, int offset, int readingByte){
     int fileDescriptor = open(file, O_RDONLY);
     lseek(fileDescriptor,offset,SEEK_SET);
     read(fileDescriptor, memoryStruct, readingByte);
-
+    close(fileDescriptor);
     return fileDescriptor;
 }
 
-void dataExtracter(BootSector bootSector, uint16_t clusterIndex, DirectoryContent directoryContent){
+void dataExtracter(BootSector bootSector, uint16_t clusterIndex, uint32_t fileSize){
  /*    const int cluster_sz = ;
 // normal cases cluster size < file size
 // the last would be cluster size > file size
@@ -65,7 +65,6 @@ if (file_sz < cluster_sz) {
 
 }
  */
-    printf("The first cluster: %d\n", clusterIndex);
     // goes to first cluster in data section
     const int clusterSize = bootSector.BPB_SecPerClus*bootSector.BPB_BytsPerSec;
     char dataBuffer[clusterSize]; // store one cluster
@@ -73,9 +72,17 @@ if (file_sz < cluster_sz) {
     int beginningOfDataArea = (bootSector.BPB_RsvdSecCnt + bootSector.BPB_NumFATs*bootSector.BPB_FATSz16)*bootSector.BPB_BytsPerSec;
     beginningOfDataArea += bootSector.BPB_RootEntCnt*sizeof(DirectoryContent);
 
-    fileReader("fat16.img",dataBuffer,beginningOfDataArea+clusterSize*(clusterIndex-2), directoryContent.DIR_FileSize);
-
-    printf("The first cluster's content is \n%s\n", dataBuffer);
+    // if the file size is larger than one cluster, you need to split and read one by one
+    if (clusterSize > fileSize){
+        fileReader("fat16.img",dataBuffer,beginningOfDataArea+clusterSize*(clusterIndex-2), fileSize);
+        fileSize = fileSize - clusterSize;
+    }
+    else{
+        fileReader("fat16.img",dataBuffer,beginningOfDataArea+clusterSize*(clusterIndex-2), clusterSize);
+    }
+    
+    // print the file content you get
+    printf("%s\n", dataBuffer);
 
     // go to the FAT table based on the index
     int FATsize = bootSector.BPB_FATSz16;
@@ -86,27 +93,23 @@ if (file_sz < cluster_sz) {
     uint16_t fatBuffer;
     // keep reading until it reaches the FAT end 0xfff8 
     fileReader("fat16.img",&fatBuffer, sizeOfReserbedSector+sizeof(uint16_t)*clusterIndex, sizeof(uint16_t));
-    if (fatBuffer != 0){
-        dataExtracter(bootSector, fatBuffer, );
+    if (fatBuffer < 0xfff8){
+        dataExtracter(bootSector, fatBuffer, fileSize);
     }
 
 }
 
 int main(){
+    // read data in boot sector
     BootSector bootSector;
-    DirectoryContent directoryContent;
     int fileDescriptor = fileReader("fat16.img", &bootSector, 0, sizeof(BootSector));
 
-    //const int clusterSize = bootSector.BPB_SecPerClus*bootSector.BPB_BytsPerSec;
-
+    // read data in root directory
     int beginningOfRootDirectry = (bootSector.BPB_RsvdSecCnt + bootSector.BPB_NumFATs*bootSector.BPB_FATSz16)*bootSector.BPB_BytsPerSec;
-
-   
+    DirectoryContent directoryContent;
     DirectoryContent directoryArray[bootSector.BPB_RootEntCnt]; 
-
     fileReader("fat16.img",directoryArray,beginningOfRootDirectry,bootSector.BPB_RootEntCnt*sizeof(DirectoryContent));
 
-    
 
     // keep reading directories until the first entry of name array is 0
     int i=0;
@@ -128,7 +131,8 @@ int main(){
         if (directory == 0 && volumeName == 0){
             // like .pdf
             printf("This is a regular file\n");
-            dataExtracter(bootSector, firstCluster, directoryArray[i]);
+            printf("Content: \n");
+            dataExtracter(bootSector, firstCluster, directoryArray[i].DIR_FileSize);
         }
         else{
             printf("This is to be ignored since this is not a regular file\n\n");
