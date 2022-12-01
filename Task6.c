@@ -62,7 +62,7 @@ int fileReader(char* file, void* memoryStruct, int offset, int readingByte){
     int fileDescriptor = open(file, O_RDONLY);
     lseek(fileDescriptor,offset,SEEK_SET);
     read(fileDescriptor, memoryStruct, readingByte);
-
+    close(fileDescriptor);
     return fileDescriptor;
 }
 
@@ -306,6 +306,5 @@ int main(){
         i++;
     }
 
-    close(fileDescriptor);
     return 0;
 }

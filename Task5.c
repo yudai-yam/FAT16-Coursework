@@ -106,40 +106,47 @@ int main(){
 
     // read data in root directory
     int beginningOfRootDirectry = (bootSector.BPB_RsvdSecCnt + bootSector.BPB_NumFATs*bootSector.BPB_FATSz16)*bootSector.BPB_BytsPerSec;
-    DirectoryContent directoryContent;
+    //DirectoryContent directoryContent;
     DirectoryContent directoryArray[bootSector.BPB_RootEntCnt]; 
-    fileReader("fat16.img",directoryArray,beginningOfRootDirectry,bootSector.BPB_RootEntCnt*sizeof(DirectoryContent));
+    fileReader("fat16.img",directoryArray,beginningOfRootDirectry,sizeof(DirectoryContent)*bootSector.BPB_RootEntCnt);
 
-
-    // keep reading directories until the first entry of name array is 0
-    int i=0;
-    
-    while(directoryArray[i].DIR_Name[0] != 0){
-
-        // get the first cluster number
-        uint16_t firstClusterHi = directoryArray[i].DIR_FstClusHI << 16;
-        uint16_t firstClusterLo = directoryArray[i].DIR_FstClusLO;
-        uint16_t firstCluster = firstClusterHi | firstClusterLo;
-
-        int attribute = directoryArray[i].DIR_Attr;
-        
-        int volumeName = (attribute >> 3) & 1;
-        int directory = (attribute >> 4) & 1;
-
-        //If both the directory bit and the volume ID/ Name bit are both zero, the entry corresponds to a 
-        //regular file, such as a text file, a PDF, etc
-        if (directory == 0 && volumeName == 0){
-            // like .pdf
-            printf("This is a regular file\n");
-            printf("Content: \n");
-            dataExtracter(bootSector, firstCluster, directoryArray[i].DIR_FileSize);
+    // user input management
+    int i;
+    bool valid = false;
+    while(!valid){
+        printf("Enter an index of the cluster in root directory: ");
+        scanf("%d", &i);
+        if (i<0 || i>=bootSector.BPB_RootEntCnt){
+            printf("This cluster does not exist. Select another cluster.\n");
         }
         else{
-            printf("This is to be ignored since this is not a regular file\n\n");
+            valid = true;
         }
+    }
 
-        i++;
-    } 
+    // get the first cluster number
+    uint16_t firstClusterHi = directoryArray[i].DIR_FstClusHI << 16;
+    uint16_t firstClusterLo = directoryArray[i].DIR_FstClusLO;
+    uint16_t firstCluster = firstClusterHi | firstClusterLo;
+
+    int attribute = directoryArray[i].DIR_Attr;
     
+    int volumeName = (attribute >> 3) & 1;
+    int directory = (attribute >> 4) & 1;
+
+    //If both the directory bit and the volume ID/ Name bit are both zero, the entry corresponds to a 
+    //regular file, such as a text file, a PDF, etc
+    if (directory == 0 && volumeName == 0){
+        // like .pdf
+        printf("This is a regular file\n");
+
+        printf("Content: \n");
+        dataExtracter(bootSector, firstCluster, directoryArray[i].DIR_FileSize);
+    }
+    else{
+        printf("This is to be ignored since this is not a regular file\n\n");
+    }
+
+        
     return 0;
 }
