@@ -112,11 +112,25 @@ int main(){
 
     // user input management
     int i;
+
+    int indexLimit = 0;
+    bool first = true;
+    while (directoryArray[indexLimit].DIR_Name[0] != 0)
+    {   
+        if (first){
+            first = false;
+        }
+        else{
+        indexLimit++;
+        }
+    }
+    
+
     bool valid = false;
     while(!valid){
         printf("Enter an index of the cluster in root directory: ");
         scanf("%d", &i);
-        if (i<0 || i>=bootSector.BPB_RootEntCnt){
+        if (i<0 || i>=indexLimit){
             printf("This cluster does not exist. Select another cluster.\n");
         }
         else{
